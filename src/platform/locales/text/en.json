@@ -4146,5 +4146,12 @@
   "Semicolons": "Semicolons",
   "Quotes": "Quotes",
   "For the strings and imports the TypeScript server adds.": "For the strings and imports the TypeScript server adds.",
-  "The TypeScript server applies Spaces and Punctuation to Reformat Code and to the code it adds: quick fixes, imports, refactorings and organize imports. Files below a Prettier, Biome or oxfmt configuration are formatted by that tool. A .editorconfig's quote_type and ij_* properties come first. TSX files use the TypeScript settings, JSX files the JavaScript ones.": "The TypeScript server applies Spaces and Punctuation to Reformat Code and to the code it adds: quick fixes, imports, refactorings and organize imports. Files below a Prettier, Biome or oxfmt configuration are formatted by that tool. A .editorconfig's quote_type and ij_* properties come first. TSX files use the TypeScript settings, JSX files the JavaScript ones."
+  "The TypeScript server applies Spaces and Punctuation to Reformat Code and to the code it adds: quick fixes, imports, refactorings and organize imports. Files below a Prettier, Biome or oxfmt configuration are formatted by that tool. A .editorconfig's quote_type and ij_* properties come first. TSX files use the TypeScript settings, JSX files the JavaScript ones.": "The TypeScript server applies Spaces and Punctuation to Reformat Code and to the code it adds: quick fixes, imports, refactorings and organize imports. Files below a Prettier, Biome or oxfmt configuration are formatted by that tool. A .editorconfig's quote_type and ij_* properties come first. TSX files use the TypeScript settings, JSX files the JavaScript ones.",
+  "API Key…": "API Key…",
+  "Set an API key for a coding agent.": "Set an API key for a coding agent.",
+  "API key": "API key",
+  "Stored in the OS credential store. Applies to new sessions.": "Stored in the OS credential store. Applies to new sessions.",
+  "API key environment variable": "API key environment variable",
+  "API key value": "API key value",
+  "ANTHROPIC_API_KEY": "ANTHROPIC_API_KEY"
 }

@@ -360,6 +360,15 @@ export function activate(): () => void {
         run: () => void executeAction("file.settings", REGISTRY_PAGE),
       },
       {
+        id: "agents.apiKey",
+        title: "API Key…",
+        description: "Set an API key for a coding agent.",
+        category: "Agents",
+        icon: "settings",
+        keywords: ["api", "key", "token", "secret", "credential", "claude", "codex", "gemini"],
+        run: () => void executeAction("file.settings", REGISTRY_PAGE),
+      },
+      {
         id: "agents.mcpServers",
         title: "MCP Connections…",
         description: "Configure the MCP servers that agents can use.",

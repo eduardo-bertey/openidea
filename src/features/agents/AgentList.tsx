@@ -19,7 +19,20 @@ import { isCancelled, nextRequestId } from "@/platform/ipc";
 import { tx, useTxTemplate } from "@/platform/i18n";
 import { openExternalUrl } from "@/platform/openUrl";
 import clsx from "clsx";
-import { Button, Dialog, Icon, IconButton, Input, List, ProgressBar, SearchField, Select, Spinner, T } from "@/ui";
+import {
+  Badge,
+  Button,
+  Dialog,
+  Icon,
+  IconButton,
+  Input,
+  List,
+  ProgressBar,
+  SearchField,
+  Select,
+  Spinner,
+  T,
+} from "@/ui";
 import { useSettingsForm } from "@/workbench/contributions";
 import { confirm } from "@/workbench/messages";
 import { LocalCliUpdate } from "./LocalCliUpdate";
@@ -39,9 +52,19 @@ import styles from "./AgentList.module.css";
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const COPILOT_GITHUB_ACCOUNT_ENV = "OPENIDEA_COPILOT_GITHUB_ACCOUNT";
+/** Keeps the name of the variable chosen in the API key field; it is not a launch variable. */
+const API_KEY_ENV_NAME = "OPENIDEA_API_KEY_ENV";
+/** Standard key variable of the agents whose CLI reads one from the environment. */
+const API_KEY_ENV: Record<string, string> = {
+  claude: "ANTHROPIC_API_KEY",
+  codex: "OPENAI_API_KEY",
+  gemini: "GEMINI_API_KEY",
+};
 
 const launchEnv = (env: Record<string, string>) =>
-  Object.fromEntries(Object.entries(env).filter(([name]) => name !== COPILOT_GITHUB_ACCOUNT_ENV));
+  Object.fromEntries(
+    Object.entries(env).filter(([name]) => name !== COPILOT_GITHUB_ACCOUNT_ENV && name !== API_KEY_ENV_NAME),
+  );
 
 /** How often the page checks on installs it did not start. */
 const BACKGROUND_POLL_MS = 1500;
@@ -813,6 +836,107 @@ function providerStatus(agent: AgentProvider): string {
   return agent.installed ? tx("Found on PATH") : tx("Not found on PATH");
 }
 
+/**
+ * API key field for one agent. It writes through `setEnv`, so the agent file keeps only
+ * variable names and the OS credential store keeps the values. The chosen name is kept in
+ * a marker variable that `launchEnv` does not pass to the agent process.
+ */
+function ApiKeyRow({
+  agent,
+  backend,
+  refresh,
+  onChanged,
+}: {
+  agent: AgentProvider;
+  backend: CommandsBackend;
+  refresh: () => Promise<void>;
+  onChanged?: () => void;
+}) {
+  const savedName = agent.env[API_KEY_ENV_NAME] || API_KEY_ENV[agent.id] || "";
+  const [name, setName] = useState(savedName);
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const isSet = !!savedName && !!agent.env[savedName];
+
+  const save = async (remove: boolean) => {
+    const next = { ...agent.env };
+    if (savedName) delete next[savedName];
+    if (remove) {
+      delete next[API_KEY_ENV_NAME];
+    } else {
+      const variable = name.trim();
+      next[API_KEY_ENV_NAME] = variable;
+      next[variable] = value;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await backend.setEnv(agent.id, next);
+      setValue("");
+      if (remove) setName(API_KEY_ENV[agent.id] ?? "");
+      await refresh();
+      onChanged?.();
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Row
+        label={<T>API key</T>}
+        htmlFor={`agent-api-key-name-${agent.id}`}
+        hint={<T>Stored in the OS credential store. Applies to new sessions.</T>}
+      >
+        <div className={styles.field}>
+          <Input
+            id={`agent-api-key-name-${agent.id}`}
+            mono
+            value={name}
+            disabled={busy}
+            placeholder="ANTHROPIC_API_KEY"
+            aria-label={tx("API key environment variable")}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <Input
+            type="password"
+            value={value}
+            disabled={busy}
+            placeholder={isSet ? "Replace…" : "Value"}
+            aria-label={tx("API key value")}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && value && name.trim()) void save(false);
+            }}
+          />
+          <Badge tone={isSet ? "success" : "neutral"}>{isSet ? <T>Stored</T> : <T>Not set</T>}</Badge>
+          <Button
+            size="small"
+            variant="ghost"
+            disabled={busy || !value || !name.trim()}
+            onClick={() => void save(false)}
+          >
+            <T>Save</T>
+          </Button>
+          {isSet && (
+            <Button size="small" variant="ghost" disabled={busy} onClick={() => void save(true)}>
+              <T>Remove</T>
+            </Button>
+          )}
+        </div>
+      </Row>
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
+    </>
+  );
+}
+
 function ProviderSettings({
   agent,
   backend,
@@ -857,6 +981,8 @@ function ProviderSettings({
     const parsed = parseEnv(draft);
     const account = agent.env[COPILOT_GITHUB_ACCOUNT_ENV];
     if (account) parsed[COPILOT_GITHUB_ACCOUNT_ENV] = account;
+    const keyEnv = agent.env[API_KEY_ENV_NAME];
+    if (keyEnv) parsed[API_KEY_ENV_NAME] = keyEnv;
     await backend.setEnv(agent.id, parsed);
     await refresh();
     onChanged?.();
@@ -987,22 +1113,25 @@ function ProviderSettings({
             </Row>
           )}
           {envEditable && (
-            <Row
-              label={<T>Environment variables</T>}
-              htmlFor={`agent-env-${agent.id}`}
-              hint={<T>Override the agent process environment. Applies to new sessions.</T>}
-            >
-              <div className={styles.field}>
-                <Input
-                  id={`agent-env-${agent.id}`}
-                  mono
-                  value={env.value}
-                  disabled={env.saving}
-                  placeholder="NAME=value; OTHER=value"
-                  onChange={(e) => env.set(e.target.value)}
-                />
-              </div>
-            </Row>
+            <>
+              <Row
+                label={<T>Environment variables</T>}
+                htmlFor={`agent-env-${agent.id}`}
+                hint={<T>Override the agent process environment. Applies to new sessions.</T>}
+              >
+                <div className={styles.field}>
+                  <Input
+                    id={`agent-env-${agent.id}`}
+                    mono
+                    value={env.value}
+                    disabled={env.saving}
+                    placeholder="NAME=value; OTHER=value"
+                    onChange={(e) => env.set(e.target.value)}
+                  />
+                </div>
+              </Row>
+              <ApiKeyRow key={agent.id} agent={agent} backend={backend} refresh={refresh} onChanged={onChanged} />
+            </>
           )}
         </div>
         {error && (
