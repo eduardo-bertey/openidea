@@ -912,7 +912,7 @@ function ApiKeyRow({
               if (e.key === "Enter" && value && name.trim()) void save(false);
             }}
           />
-          <Badge tone={isSet ? "success" : "neutral"}>{isSet ? <T>Stored</T> : <T>Not set</T>}</Badge>
+            <Badge tone={isSet ? "success" : "neutral"}>{isSet ? <T>Stored</T> : <T>Not set</T>}</Badge>
           <Button
             size="small"
             variant="ghost"
